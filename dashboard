@@ -1,0 +1,21 @@
+import streamlit as st
+import pandas as pd
+import matplotlib.pyplot as plt
+
+# Load data
+df = pd.read_csv('your_dataset.csv')
+
+# Sidebar - Dropdown for selecting categorical variable
+categorical_variable = st.sidebar.selectbox('Select Categorical Variable', df.columns)
+
+# Filter data based on dropdown selection
+filtered_df = df[df['Categorical_Column'] == categorical_variable]
+
+# Line chart
+st.write("## Line Chart")
+plt.figure(figsize=(10, 6))
+plt.plot(filtered_df['X_Column'], filtered_df['Y_Column'])
+plt.xlabel('X Label')
+plt.ylabel('Y Label')
+plt.title('Line Chart')
+st.pyplot(plt)
