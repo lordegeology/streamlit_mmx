@@ -1,0 +1,45 @@
+import streamlit as st
+import pandas as pd
+import altair as alt
+
+# Load data
+df = pd.read_csv('your_dataset.csv')
+
+# Select categorical variable
+categorical_variable = st.selectbox('Select Categorical Variable', df.columns)
+
+# Filter data based on selected categorical variable
+filtered_df = df[df[categorical_variable] == st.selectbox(f'Select Value for {categorical_variable}', df[categorical_variable].unique())]
+
+# Set specific colors
+color_scale = alt.Scale(domain=['Category1', 'Category2', 'Category3'], range=['blue', 'red', 'green'])
+
+# Create Altair line chart with secondary axis
+line_chart = alt.layer(
+    alt.Chart(filtered_df).mark_line().encode(
+        x='X_Column',
+        y='Y_Column',
+        color=alt.Color('Color_Column', scale=color_scale),  # Change 'Color_Column' to the actual column name for color encoding
+        tooltip=['X_Column', 'Y_Column']  # Add tooltips for interactivity
+    ).properties(
+        title='Primary Y-Axis Title'  # Add the title here
+    ),
+    alt.Chart(filtered_df).mark_line().encode(
+        x='X_Column',
+        y='Secondary_Y_Column',
+        color=alt.value('orange')  # Change color if needed
+    ).properties(
+        title='Secondary Y-Axis Title'  # Add the title here
+    ).resolve_scale(
+        y='independent'  # Make the secondary y-axis independent
+    )
+).resolve_scale(
+    color='independent',  # Resolve color scales independently
+    y='independent'  # Resolve y-axes independently
+).properties(
+    width=600,
+    height=400
+).interactive()
+
+# Display line chart
+st.altair_chart(line_chart)
