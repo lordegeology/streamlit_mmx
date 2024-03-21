@@ -1,0 +1,19 @@
+import random
+import matplotlib.colors as mcolors
+
+def generate_random_colors(num_colors):
+    # Get a list of all available colors in matplotlib
+    all_colors = list(mcolors.CSS4_COLORS.keys())
+
+    # Shuffle the list to randomize the colors
+    random.shuffle(all_colors)
+
+    # Take a slice of the shuffled list based on the number of colors needed
+    random_colors = all_colors[:num_colors]
+
+    return random_colors
+
+# Example usage
+num_colors = 5
+random_colors = generate_random_colors(num_colors)
+print(random_colors)
