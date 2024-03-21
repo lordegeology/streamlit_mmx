@@ -1,0 +1,24 @@
+import streamlit as st
+import pandas as pd
+import altair as alt
+import numpy as np
+
+# Load data
+df = pd.read_csv('your_dataset.csv')
+
+# Calculate correlation matrix
+corr_matrix = df.corr()
+
+# Create heatmap using Altair
+heatmap = alt.Chart(corr_matrix.reset_index()).mark_rect().encode(
+    x='index:N',
+    y='variable:N',
+    color=alt.Color('value:Q', scale=alt.Scale(scheme='viridis'))  # Choose color scheme
+).properties(
+    width=600,
+    height=400,
+    title='Correlation Heatmap of Variables'
+)
+
+# Display heatmap
+st.write(heatmap)
