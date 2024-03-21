@@ -1,0 +1,78 @@
+import streamlit as st
+import pandas as pd
+import altair as alt
+
+# Load data
+df = pd.read_csv('your_dataset.csv')
+
+# Select categorical variable
+categorical_variable = st.selectbox('Select Categorical Variable', df.columns)
+
+# Filter data based on selected categorical variable
+filtered_df = df[df[categorical_variable] == st.selectbox(f'Select Value for {categorical_variable}', df[categorical_variable].unique())]
+
+# Set specific colors
+color_scale = alt.Scale(domain=['Category1', 'Category2', 'Category3'], range=['blue', 'red', 'green'])
+
+# Create Altair line chart with title and color encoding
+line_chart = alt.Chart(filtered_df).mark_line().encode(
+    x='X_Column',
+    y='Y_Column',
+    color=alt.Color('Color_Column', scale=color_scale),  # Change 'Color_Column' to the actual column name for color encoding
+    tooltip=['X_Column', 'Y_Column']  # Add tooltips for interactivity
+).properties(
+    width=600,
+    height=400,
+    title='Your Line Chart Title'  # Add the title here
+).interactive()
+
+# Create histograms for three continuous variables
+histogram_x = alt.Chart(filtered_df).mark_bar().encode(
+    x=alt.X('X_Column', bin=alt.Bin(maxbins=20)),
+    y='count()',
+    color=alt.value('blue')  # Change color if needed
+).properties(
+    width=300,
+    height=200,
+    title='Histogram for X_Column'  # Add the title here
+)
+
+histogram_y = alt.Chart(filtered_df).mark_bar().encode(
+    x=alt.X('Y_Column', bin=alt.Bin(maxbins=20)),
+    y='count()',
+    color=alt.value('red')  # Change color if needed
+).properties(
+    width=300,
+    height=200,
+    title='Histogram for Y_Column'  # Add the title here
+)
+
+histogram_z = alt.Chart(filtered_df).mark_bar().encode(
+    x=alt.X('Z_Column', bin=alt.Bin(maxbins=20)),
+    y='count()',
+    color=alt.value('green')  # Change color if needed
+).properties(
+    width=300,
+    height=200,
+    title='Histogram for Z_Column'  # Add the title here
+)
+
+# Create box plot for a continuous variable across categories
+box_plot = alt.Chart(df).mark_boxplot().encode(
+    x=categorical_variable,
+    y='X_Column',  # Change 'X_Column' to the actual column name for the continuous variable
+    color=categorical_variable
+).properties(
+    width=600,
+    height=400,
+    title='Box Plot of X_Column Across Categories'  # Add the title here
+).interactive()
+
+# Display charts
+st.write(line_chart)
+
+st.subheader('Histograms for Continuous Variables')
+st.write(histogram_x | histogram_y | histogram_z)
+
+st.subheader('Box Plot of X_Column Across Categories')
+st.write(box_plot)
