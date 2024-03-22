@@ -1,0 +1,42 @@
+   if categorical_variable != '(All)':
+        if categorical_variable_specific != '(All)':
+
+            color_scale = alt.Scale(domain = list(df[categorical_variable].unique()), range = generate_random_colors(len(list(df[categorical_variable].unique())),random_seed=None))
+            st.markdown("##            All Boxplots")
+            filtered_df['F_FY'] = filtered_df['F_FY'].apply(str)
+            box_plot = alt.Chart(filtered_df).mark_boxplot().encode(
+                x='F_FY',
+                y=linechartvar,  # Change 'X_Column' to the actual column name for the continuous variable
+                color=alt.Color(categorical_variable,scale = color_scale)
+            ).properties(
+                width=600,
+                height=400,
+                title=f'Box Plot of Clicks for {linechartvar}'  # Add the title here
+            ).interactive()
+            st.write(box_plot)
+        else:
+            st.markdown("##            All Boxplots")
+            filtered_df['F_FY'] = filtered_df['F_FY'].apply(str)
+            box_plot = alt.Chart(filtered_df).mark_boxplot().encode(
+                x='F_FY',
+                y=linechartvar,  # Change 'X_Column' to the actual column name for the continuous variable
+            ).properties(
+                width=600,
+                height=400,
+                title=f'Box Plot of Clicks Per Year for {linechartvar}'  # Add the title here
+            ).interactive()
+            st.write(box_plot)
+
+    else:
+        
+        st.markdown("##            All Boxplots")
+        filtered_df['F_FY'] = filtered_df['F_FY'].apply(str)
+        box_plot = alt.Chart(filtered_df).mark_boxplot().encode(
+            x='F_FY',
+            y=linechartvar,  # Change 'X_Column' to the actual column name for the continuous variable
+        ).properties(
+            width=600,
+            height=400,
+            title=f'Box Plot of Clicks Per Year for {linechartvar}'  # Add the title here
+        ).interactive()
+        st.write(box_plot)
