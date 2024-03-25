@@ -33,7 +33,14 @@ st.table(formatted_df.style.set_properties(**{'text-align': 'center'}).set_table
 
 st.markdown("# Table")
 
+s1 = dict(selector='th', props=[('text-align', 'center'), ('font-size', '16px')])  # Increase font size to 16px for headers
+s2 = dict(selector='td', props=[('text-align', 'center'), ('font-size', '14px')])  # Increase font size to 14px for data cells
 
+# Apply CSS styles to the DataFrame and convert it to HTML
+styled_table = formatted_df.style.set_table_styles([s1, s2]).hide(axis=0).render()
+
+# Display the HTML table in Streamlit with increased font size
+st.write(styled_table, unsafe_allow_html=True)
 
 s1 = dict(selector='th', props=[('text-align', 'center')])
 s2 = dict(selector='td', props=[('text-align', 'center')])
