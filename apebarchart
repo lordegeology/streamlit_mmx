@@ -23,3 +23,46 @@
     ).properties(width=900, height=400, title=f'Line Chart for {primlinechartvar} and {linechartvar} vs Weeks')
 
     st.altair_chart(combined_chart)
+
+
+
+
+
+
+
+
+import pandas as pd
+import altair as alt
+import streamlit as st
+
+# Assuming you have the necessary data loaded into filtered_df, primlinechartvar, and linechartvar
+
+# Calculate the APE for each point
+filtered_df['APE'] = (filtered_df[primlinechartvar] - filtered_df[linechartvar]).abs() / filtered_df[linechartvar] * 100
+
+# Create a new DataFrame for the APE values
+ape_df = filtered_df[['F_FW:T', 'APE']].copy()
+
+# Base chart for line chart
+base = alt.Chart(ape_df)
+
+# Line chart for APE
+line_chart = base.mark_line(color='blue').encode(
+    x=alt.X('F_FW:T', axis=alt.Axis(format='%d/%m/%Y'), title='Date'),
+    y=alt.Y('APE', title='Absolute Percentage Error'),
+    tooltip=['F_FW:T', 'APE']
+).properties(width=900, height=200, title=f'Absolute Percentage Error for {primlinechartvar} and {linechartvar} vs Weeks')
+
+# Bar chart for APE
+bar_chart = base.mark_bar(color='orange').encode(
+    x=alt.X('F_FW:T', axis=alt.Axis(format='%d/%m/%Y'), title='Date'),
+    y=alt.Y('APE', title='Absolute Percentage Error'),
+    tooltip=['F_FW:T', 'APE']
+).properties(width=900, height=200, title=f'Absolute Percentage Error (Bar Chart) for {primlinechartvar} and {linechartvar} vs Weeks')
+
+# Combine line and bar charts
+combined_chart = alt.layer(line_chart, bar_chart).resolve_scale(
+    y='independent'
+)
+
+st.altair_chart(combined_chart)
