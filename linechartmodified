@@ -24,6 +24,12 @@ combined_chart = alt.layer(line1, line2).resolve_scale(
 
 st.altair_chart(combined_chart)
 formatted_df = df_rounded.applymap(lambda x: f"{x:.2f}".rstrip('0').rstrip('.') if isinstance(x, float) else x)
+st.table(formatted_df.style.set_properties(**{'text-align': 'center'}).set_table_styles([
+    {'selector': '.row-index-name', 'props': [('font-size', '16px')]},  # Increase row index font size
+    {'selector': 'td', 'props': [('font-size', '16px')]},  # Increase cell font size
+    {'selector': 'th', 'props': [('font-size', '18px')]},  # Increase header font size
+    {'selector': '.css-19ih76x', 'props': [('font-size', '18px')]},  # Increase table name font size
+]))
 
 st.markdown("# Table")
 
