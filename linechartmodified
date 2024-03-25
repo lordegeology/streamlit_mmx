@@ -23,6 +23,7 @@ combined_chart = alt.layer(line1, line2).resolve_scale(
 ).properties(width=900, height=400, title=f'Line Chart for {primlinechartvar} and {linechartvar} vs Weeks')
 
 st.altair_chart(combined_chart)
+formatted_df = df_rounded.applymap(lambda x: f"{x:.2f}".rstrip('0').rstrip('.') if isinstance(x, float) else x)
 
 st.markdown("# Table")
 
