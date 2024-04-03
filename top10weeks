@@ -1,0 +1,20 @@
+import pandas as pd
+
+# Assuming you have a DataFrame df with columns 'timestamp', 'actual_values', and 'predicted_values'
+# Calculate MAPE
+df['absolute_error'] = abs(df['actual_values'] - df['predicted_values'])
+df['percentage_error'] = df['absolute_error'] / df['actual_values']
+df['MAPE'] = df['percentage_error'] * 100
+
+# Group by 5 consecutive weeks and calculate the mean MAPE for each group
+df['week_number'] = df['timestamp'].dt.week
+grouped = df.groupby(df['week_number'] // 5)['MAPE'].mean().reset_index()
+
+# Sort by MAPE in descending order and get the top 10 groups
+top_10_groups = grouped.nlargest(10, 'MAPE')
+
+# Save the top 10 groups to a new DataFrame
+top_10_groups_df = df[df['week_number'] // 5].isin(top_10_groups['week_number']).reset_index(drop=True)
+
+# Print or further process top_10_groups_df as needed
+print(top_10_groups_df)
