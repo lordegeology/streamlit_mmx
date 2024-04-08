@@ -1,0 +1,695 @@
+#!/usr/bin/env python
+# coding: utf-8
+
+# # Import Libraries 
+
+# In[1]:
+
+
+import pandas as pd
+import numpy as np
+import seaborn as sns
+import matplotlib.pyplot as plt
+import missingno as msno
+from sklearn.preprocessing import LabelEncoder, StandardScaler
+from sklearn.impute import KNNImputer
+from sklearn.model_selection import train_test_split, GridSearchCV
+from sklearn.ensemble import IsolationForest, RandomForestClassifier
+from sklearn.neighbors import LocalOutlierFactor
+from sklearn.covariance import EllipticEnvelope
+from sklearn.svm import SVC, OneClassSVM
+from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
+from sklearn.decomposition import PCA
+
+from time import perf_counter
+
+import warnings
+warnings.filterwarnings('ignore')
+
+
+# In[ ]:
+
+
+
+
+
+# # Initial analysis and insights from excel
+
+# In[2]:
+
+
+'''
+
+Customers who have churned account for a substantial 17.24% of the total revenue, with the general reason for churning being the competitor, with the reported 
+specifics being better services being offered, including prices, data speeds and hardware. 
+
+Method of payment is an important aspect of a customer's user experience, which intuitively has a significant correlation with services availed like online security. From the graph, where the churn status has been compared against payment methods where NO services like Online Security, Device Protection Plan or 
+Premium Tech Support has been availed, the churn rate amongst customers who have chosen bank withdrawals is alarmingly high. 
+
+Newly joined customers only contribute to 6.45% of customer count and 0.25% of revenue.
+
+
+'''
+
+
+# In[ ]:
+
+
+
+
+
+# # Initial data cleaning and visualization
+
+# In[3]:
+
+
+df = pd.DataFrame()
+#df = pd.read_csv('customer_churn_dataset_initial_cleaning.csv')
+df = pd.read_csv('telecom_customer_churn.csv')
+#df.drop(['Unnamed: 0'],axis = 1, inplace = True)
+
+df = df.drop(['Customer ID', 'City', 'Zip Code', 'Churn Category', 'Churn Reason'], axis=1)
+df = df[df['Customer Status'] != 'Joined']
+
+
+# THE ABOVE COLUMNS DO NOT CONTRIBUTE SUFFICIENTLY TO KEEP IN DATASET, ALSO COULD AFFECT MODELLING
+
+
+
+df.reset_index(inplace = True)
+
+df
+
+
+# In[4]:
+
+
+df.info()
+
+
+# In[5]:
+
+
+df.describe().T
+
+
+# In[6]:
+
+
+df_categorical = df.select_dtypes(exclude='number')
+
+
+# In[7]:
+
+
+df_categorical.describe().T
+
+
+# In[ ]:
+
+
+
+
+
+# In[8]:
+
+
+'''
+
+EDA of all the categorical variables using pie charts
+
+'''
+
+
+num_rows = 5
+num_cols = 4
+fig, axes = plt.subplots(num_rows, num_cols, figsize=(16, 30))
+
+for i, column in enumerate(df_categorical.columns):
+    categories = df_categorical[column].value_counts()
+
+    ax = axes[i // num_cols, i % num_cols]
+
+    ax.pie(categories, labels=categories.index, autopct='%1.1f%%', shadow=True, startangle=140)
+    ax.axis('equal')
+    ax.set_title(f'Distribution of {column}')
+
+    total = categories.values.sum()
+    sum_text = f'Sum: {total}'
+    ax.text(0, -1.2 - len(categories)*0.2, sum_text, ha='center')
+
+    for j, percentage in enumerate(categories):
+        percent_text = f'{percentage} ({categories.index[j]})'
+        ax.text(0, -1.2 - j*0.2, percent_text, ha='center')
+
+plt.tight_layout()
+plt.show()
+
+
+# In[9]:
+
+
+'''
+
+An initial look at the pie charts tells us a disproporionate distribution amongst services availed and usage, which maybe prove
+to be crucial to churning
+
+We dropped the joined customers earlier as they represented a very small proportion of customers, and so will not help in the modelling.
+
+
+'''
+
+
+# In[10]:
+
+
+df_categorical
+
+
+# # Data Transformations: Encoding and Filling Missing Values
+
+# In[11]:
+
+
+print(f"null values in nominal features:\n{df_categorical.isna().sum()}")
+msno.matrix(df_categorical)
+
+
+# In[12]:
+
+
+df1 = df_categorical
+
+
+# In[13]:
+
+
+df1['Internet Type'] = df1['Internet Type'].apply(lambda x: 'None' if pd.isnull(x) else x)
+
+column_name = ['Online Security', 'Online Backup', 'Device Protection Plan', 'Premium Tech Support',
+               'Streaming TV', 'Streaming Movies', 'Streaming Music', 'Unlimited Data']
+for column in column_name:
+  df1[column] = df1[column].apply(lambda x: 'No' if pd.isnull(x) else x)
+
+
+# In[14]:
+
+
+msno.matrix(df1)
+
+
+# In[15]:
+
+
+# first step:
+conversion_dict = {"Yes": 1, "No": 0}
+df1['Multiple Lines'] = df1['Multiple Lines'].map(conversion_dict)
+
+# second step: labeling the target by using LabelEncoder
+label_encoder = LabelEncoder()
+df1['Customer Status'] = label_encoder.fit_transform(df1['Customer Status'])
+
+# remove the dummy variables, just the first 
+df1 = pd.get_dummies(df1, drop_first=True)
+
+
+# In[16]:
+
+
+imputer = KNNImputer(n_neighbors=5)
+imputed_data = imputer.fit_transform(df1)
+imputed_data = np.round(imputed_data)
+# If we want to keep the DataFrame format:
+df1_imputed = pd.DataFrame(data=imputed_data, columns=df1.columns)
+
+
+# In[17]:
+
+
+# checking missing value
+msno.matrix(df1_imputed)
+df1_imputed['Multiple Lines'].value_counts()
+
+
+# In[18]:
+
+
+df1_imputed.info()
+
+
+# In[19]:
+
+
+#heat map
+corr_mat = df1_imputed.corr()
+plt.figure(figsize=(30, 15))
+sns.heatmap(corr_mat.abs(), annot=True)
+
+for x in range(len(df1_imputed.columns)):
+  corr_mat.iloc[x,x] = 0.0
+corr_mat.abs().idxmax()
+
+
+# In[20]:
+
+
+df1_imputed
+
+
+# In[21]:
+
+
+'''
+From the heatmaps, the following insights can be inferred and have been/will be dealt with: 
+
+-> Total refunds and total extra data charges have very little correlation with the other variables and can be dropped from the dataset during modelling to reduce the dimensionality. This assumption may be confirmed by implementing a feature importance algorithm. 
+
+ 
+
+-> Similarly, latitudes and longitudes may also be dropped, thus confirming the assumption of dropping city and zipcode as features. 
+
+ 
+
+'''
+
+
+# # Data Transformation, cleaning of numerical variables and visualizing using heatmaps
+
+# In[ ]:
+
+
+
+
+
+# In[22]:
+
+
+''' 
+now, we do the same thing as the previous section but for numerical features
+
+'''
+
+
+# In[23]:
+
+
+df2 = df.select_dtypes(include='number')
+df2.describe().T
+
+
+# In[24]:
+
+
+fig, axs = plt.subplots(ncols=5, nrows=3, figsize=(25,15))
+index = 0
+axs = axs.flatten()
+for k, v in df2.items():
+  sns.distplot(v, ax=axs[index])
+  index += 1
+
+plt.tight_layout(pad=0.4, w_pad=0.5, h_pad=5)
+
+
+# In[25]:
+
+
+'''
+The varied distribution of variables like Tenure in Months and Total Charges may prove to show high correlation with churning.
+We shall see this from the heatmaps as well as results from modelling.
+
+
+'''
+
+
+# In[26]:
+
+
+#heat map
+corr_mat = df2.corr()
+plt.figure(figsize=(10, 8))
+sns.heatmap(corr_mat.abs(), annot=True)
+
+for x in range(len(df2.columns)):
+  corr_mat.iloc[x,x] = 0.0
+corr_mat.abs().idxmax()
+
+
+# In[27]:
+
+
+'''
+
+total charges and total revenue have a very high correlation factor so one of them can be dropped, say total revenue as charges
+makes sense intuitively as a factor model more than revenue from a customer standpoint for modelling
+
+'''
+
+
+# In[28]:
+
+
+df2 = df2.drop(['Total Revenue'],axis=1)
+
+
+# In[29]:
+
+
+msno.matrix(df2)
+print("null values in numerical features:\n",df2.isna().sum())
+
+
+# In[30]:
+
+
+# avg monthly long distance charges and avg monthly gb download is dependent on internet service and phone service being yes or no
+
+
+#filling null values
+column_name = ['Avg Monthly Long Distance Charges', 'Avg Monthly GB Download']
+for column in column_name:
+  df2[column] = df2[column].apply(lambda x: 0 if pd.isnull(x) else x)
+# checking null values
+msno.matrix(df2)
+print("null values in numerical features:\n",df2.isna().sum())
+
+
+# In[31]:
+
+
+frequency_df = pd.DataFrame(columns = ['Variable', 'Category', 'Frequency'])
+
+for col in df1_imputed.columns:
+    if df1_imputed[col].dtype == 'float64':
+        frequencies = df1_imputed[col].value_counts(normalize = True).sort_values(ascending=False)
+
+        #for category, frequency in frequencies.items():
+            #frequency_df = frequency_df.append({'Variable':col, 'Category': category, 'Frequency': frequency}, ignore_index = True)
+        col_df = pd.DataFrame({'Variable':col, 'Category': frequencies.index, 'Frequency': frequencies.values})
+        frequency_df = pd.concat([frequency_df, col_df], ignore_index=True)
+
+print("Frequency analysis dataframe: ")
+print(frequency_df)
+
+
+conditional_analysis = pd.DataFrame(columns = ['Variable', 'Category', 'Frequency'])
+
+for col in df1_imputed.columns:
+    if df1_imputed[col].dtype == 'float64':
+        filtered_df = df1_imputed[df1_imputed['Married_Yes'] == 1.0]                # change to the required variable and filter to see the proportions
+        
+        frequencies_1 = filtered_df[col].value_counts(normalize = True).sort_values(ascending=False)
+
+        #for category, frequency in frequencies.items():
+            #frequency_df = frequency_df.append({'Variable':col, 'Category': category, 'Frequency': frequency}, ignore_index = True)
+        col_df = pd.DataFrame({'Variable':col, 'Category': frequencies_1.index, 'Frequency': frequencies_1.values})
+        conditional_analysis = pd.concat([conditional_analysis, col_df], ignore_index=True)
+
+print("\n Conditional Analysis where Married_Yes = 1.0")
+print(conditional_analysis)
+
+
+'''
+
+
+The above is an attempt at frequency analysis within python itself conditionally, meaning
+a variable like gender or marital status can be set as 0 or 1 and the proportions of the other variables wrt it can be seen
+
+
+
+'''
+
+
+# In[32]:
+
+
+eda_df = df2.join(df1_imputed)
+eda_df
+
+
+# In[33]:
+
+
+corr_mat = eda_df.corr()
+plt.figure(figsize=(30, 20))
+sns.heatmap(corr_mat.abs(), annot=True)
+
+for x in range(len(eda_df.columns)):
+  corr_mat.iloc[x,x] = 0.0
+corr_mat.abs().idxmax()
+
+
+# In[34]:
+
+
+'''
+
+Based on the heatmaps visualised, the following columns can be dropped due to a lack of correlation with other variables:
+Latitude, Longitude, Total Refunds
+
+'''
+
+
+# In[35]:
+
+
+eda_df = eda_df.drop(['Latitude', 'Longitude', 'Total Refunds'],axis=1)
+eda_df.info()
+
+
+# # Outlier Detection And Removal
+
+# In[36]:
+
+
+clf = IsolationForest(max_features=25, n_estimators=100, random_state = 0, contamination = 0.05)
+outliers = clf.fit_predict(eda_df)
+
+df_clean = eda_df[outliers ==1]
+
+
+# In[37]:
+
+
+df_clean.reset_index(inplace = True)
+df_clean
+
+
+# In[38]:
+
+
+for i, col in enumerate(eda_df.columns):
+    #plt.subplot(1, len(eda_df.columns), i+1)
+    plt.figure(figsize = (20,10))
+
+    plt.boxplot([eda_df[col], df_clean[col]], labels = ['Original','Cleaned'])
+    plt.title(col)
+
+    plt.show()
+
+
+# # We can now go ahead with the modelling and classification task
+
+# In[39]:
+
+
+'''
+
+MODELLING
+
+'''
+
+
+# In[40]:
+
+
+X = df_clean.drop(['Customer Status'], axis=1)
+y = df_clean.loc[:, 'Customer Status']
+
+
+# In[41]:
+
+
+from imblearn.over_sampling import SMOTE    
+
+X_res,y_res = SMOTE().fit_resample(X,y)   
+
+y_res.value_counts()
+
+
+# In[42]:
+
+
+y_res
+
+
+# In[43]:
+
+
+'''
+
+Implemented SMOTE to solve the imbalanced data problem as the number of stayed outweighed churned
+
+'''
+
+
+# In[44]:
+
+
+'''
+
+SCALING
+
+'''
+
+X_train, X_test, y_train, y_test = train_test_split(X_res, y_res, test_size=0.2, random_state=42)
+scaler = StandardScaler()
+X_train_scaled = scaler.fit_transform(X_train)
+X_test_scaled = scaler.transform(X_test)
+
+
+# In[ ]:
+
+
+
+
+
+# In[45]:
+
+
+''' 
+We use Random Forest for this Classification Task with hyperparameter tuning using GRID SEARCH
+
+GridSearch will determine the best hyperparameters combination
+
+'''
+param_grid = {
+    'n_estimators': [10, 25, 50,75, 100],
+    'max_depth': [10, 20, 30],
+    'min_samples_split': [5,7, 10],
+    'min_samples_leaf': [1, 2, 4,7],
+}
+
+
+rfc = RandomForestClassifier(random_state=42)
+grid_search_RF = GridSearchCV(estimator=rfc, param_grid=param_grid, cv=5, n_jobs=-1, verbose=2, scoring='accuracy')
+
+
+grid_search_RF.fit(X_train_scaled, y_train)
+
+
+best_params = grid_search_RF.best_params_
+best_score = grid_search_RF.best_score_
+
+print(f"Best parameters in RF: {best_params}")
+print(f"Best cross-validation score in RF: {best_score}")
+
+
+
+
+# In[46]:
+
+
+best_model_RF = grid_search_RF.best_estimator_
+start_tra = perf_counter()
+best_model_RF.fit(X_train_scaled, y_train)
+end_tra = perf_counter()
+
+
+# In[47]:
+
+
+import sklearn.metrics as metrics
+
+
+y_pred = best_model_RF.predict(X_test_scaled)
+
+print("Confusion matrix\n")
+print(pd.crosstab(pd.Series(y_test, name='Actual'), pd.Series(y_pred, name='Predicted')))
+
+
+# In[48]:
+
+
+from sklearn.metrics import classification_report
+target_names = ['0', '1']
+print(classification_report(y_test, y_pred, target_names=target_names))
+
+
+# In[49]:
+
+
+train_score_RF = round(best_model_RF.score(X_train_scaled, y_train), 2)
+print("The Training Accuracy is: ", train_score_RF)
+
+# Accuracy on Test
+test_score_RF = round(best_model_RF.score(X_test_scaled, y_test), 2)
+print("The Testing Accuracy is: ", test_score_RF)
+
+#training time
+train_time_RF = round((end_tra-start_tra), 4)
+print(f'train phase time: ', train_time_RF)
+
+
+# In[ ]:
+
+
+
+
+
+# In[50]:
+
+
+score = roc_auc_score(y_test, y_pred)
+print(f"ROC AUC: {score:.4f}")     #AREA UNDER THE CURVE
+
+
+# In[53]:
+
+
+from sklearn.metrics import roc_curve
+from sklearn.metrics import RocCurveDisplay
+def plot_sklearn_roc_curve(y_test, y_pred):
+    fpr, tpr, _ = roc_curve(y_test, y_pred)
+    roc_display = RocCurveDisplay(fpr=fpr, tpr=tpr).plot()
+    roc_display.figure_.set_size_inches(7,7)
+    plt.plot([0, 1], [0, 1], color = 'g')
+
+plot_sklearn_roc_curve(y_test, y_pred)
+
+
+# In[ ]:
+
+
+'''
+
+The model works great for this classification task, the ROC curve can be seen above.The area under the curve is 0.9327
+Choosing an RF model was based on other studies done.
+
+'''
+
+
+# In[ ]:
+
+
+
+
+
+# In[ ]:
+
+
+
+
+
+# # In conclusion, using a Random Forest model and the data workflow created in this study, the model gives an accuracy of 0.93
+
+# In[ ]:
+
+
+
+
+
+# In[ ]:
+
+
+
+
