@@ -382,6 +382,25 @@ def app():
 
 
 
+
+
+
+def batch_input_forecasts(media_list):
+    input_text = st.text_area("Enter forecast values separated by commas or newlines:")
+    lines = input_text.split("\n")  # Split by newline characters
+    forecastt = {}
+    for line in lines:
+        parts = line.split(",")  # Split each line by commas
+        for part in parts:
+            if part.strip():
+                channel, val = part.strip().split(":")  # Assuming input format is "ChannelName:Value"
+                if channel.strip() in media_list:
+                    forecastt[channel.strip()] = float(val.strip())
+    return forecastt
+
+
+
+
 def batch_input_forecasts(media_list):
     input_text = st.text_input("Enter forecast values separated by commas:", "10.0,20.0,30.0,40.0,50.0")
     forecast_values = [float(val.strip()) for val in input_text.split(",")]
