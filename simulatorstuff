@@ -413,3 +413,33 @@ if st.button("Apply Batch Changes"):
     # Update the forecasted spend in df_output based on the updated forecasts
     for k in media_list:
         df_output["Forecasted Spend"] = forecastt[k] * sum / 100
+
+
+
+
+
+
+
+
+
+
+
+
+
+data = {'A': [1, 2, 3, 4], 'B': [5, 6, 7, 8]}
+df = pd.DataFrame(data)
+
+# Display the DataFrame
+st.dataframe(df)
+
+# Add inputs for editing specific cells
+for index, row in df.iterrows():
+    for column in df.columns:
+        if column == 'A':
+            new_value = st.number_input(f'Edit cell ({index}, {column}):', value=row[column])
+            df.at[index, column] = new_value
+        elif column == 'B':
+            df.at[index, column] = row['A'] * 2  # Formula-based calculation
+
+# Display the updated DataFrame
+st.dataframe(df)
