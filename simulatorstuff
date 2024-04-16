@@ -362,3 +362,35 @@ def app():
     st.write("Dataframes used for this tool:")
     st.write(grouped_by_year[['YR_NB'] + spend_list])
     st.write(grouped_by_month_2023[['MO_NB'] + spend_list])
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+def batch_input_forecasts(media_list):
+    input_text = st.text_input("Enter forecast values separated by commas:", "10.0,20.0,30.0,40.0,50.0")
+    forecast_values = [float(val.strip()) for val in input_text.split(",")]
+    forecastt = dict(zip(media_list, forecast_values))
+    return forecastt
+
+if st.button("Apply Batch Changes"):
+    updated_forecastt = batch_input_forecasts(media_list)
+    forecastt.update(updated_forecastt)
+    # Update the forecasted spend in df_output based on the updated forecasts
+    for k in media_list:
+        df_output["Forecasted Spend"] = forecastt[k] * sum / 100
