@@ -1,0 +1,364 @@
+import random
+import os
+
+# 3rd party libraries
+import streamlit as st
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
+from matplotlib import style 
+import altair as alt
+from st_aggrid import GridOptionsBuilder, AgGrid, GridUpdateMode, DataReturnMode
+
+
+def app():
+    
+    # def change_label_style(label, font_size='12px', font_color='black', font_family='sans-serif'):
+    #     html = f"""
+    #     <script>
+    #         var elems = window.parent.document.querySelectorAll('p');
+    #         var elem = Array.from(elems).find(x => x.innerText == '{label}');
+    #         elem.style.fontSize = '{font_size}';
+    #         elem.style.color = '{font_color}';
+    #         elem.style.fontFamily = '{font_family}';
+    #     </script>
+    #     """
+    #     st.components.v1.html(html)
+
+    st.header('Cost Scenario Simulator')
+    
+    input_excel = pd.read_excel('../data/input_data/model_data_test.xlsx', sheet_name=None)
+    df = input_excel['Sheet1']
+
+    grouped_by_year = df.drop(columns=['WK_END_DT','Division', 'DMA_Desc'])
+    grouped_by_year = grouped_by_year.groupby('YR_NB').sum()
+    grouped_by_month = df.drop(columns=['WK_END_DT','Division', 'DMA_Desc'])
+    grouped_by_month = grouped_by_month.groupby('MO_NB').sum()
+    grouped_by_year = grouped_by_year.reset_index()
+    grouped_by_month = grouped_by_month.reset_index()
+    grouped_by_month_2023 = df[df['YR_NB'] == 2023]
+    grouped_by_month_2023 = grouped_by_month_2023.drop(columns=['WK_END_DT','Division', 'DMA_Desc'])
+    grouped_by_month_2023 = grouped_by_month_2023.groupby('MO_NB').sum()
+    grouped_by_month_2023 = grouped_by_month_2023.reset_index()
+
+
+
+    # #st.dataframe(df)
+    # c1,c15, c2 = st.columns([0.5,0.3,0.2], gap = 'small')
+
+    
+    # with c1:
+    #     st.markdown("Working Media")
+    #     values = st.slider('Enter Value:', 0, 1000000, 10000)
+    #     st.write('Values:', values)
+    # with c15:
+    #     number = st.number_input("Insert a number", value=None, placeholder="Type a number...")
+    #     st.write('The current number is ', number)
+
+    # x = 12
+    # with c2:
+    #     st.markdown(f"### Total Weeks: {x}")
+
+    # varr = {}
+    # st.subheader('Rules:')
+    # # option1 = st.selectbox('Year?',('2021', '2022', '2023'))
+    # # option2 = st.selectbox('Week?',('1', '2', '3'))
+    # labels,c3,c4,c5,c6,c7, c8,c9 = st.columns(8, gap = 'small')
+    # buttonlist = [c3,c4,c5,c6,c7, c8,c9]
+    # #weeklist = [w1,w2,w3,w4,w5,w6,w7,w8,w9,w10,w11,w12]
+
+
+    # with labels:
+    #     st.write('Years',unsafe_allow_html=True)
+    #     st.write('2021',unsafe_allow_html=True)
+    #     st.write('2022',unsafe_allow_html=True)
+    #     st.write('2023',unsafe_allow_html=True)
+
+
+    # for i,j in zip(buttonlist,range(1,8)):
+        
+    #     with i:
+    #         st.write(f'Week {j}',unsafe_allow_html=True)
+    #         varr[f'w{j}'] = st.checkbox(f'Hi {j}',key=i)
+    #         if varr[f'w{j}']:
+    #             st.write(f'<sub>{j} Feature activated!</sub>',unsafe_allow_html=True)
+    #status = st.radio("Select Whether to View Yearwise Scenario Simulator or Monthwise: ", ('Year', 'Month','New Month'))
+
+    #st.subheader("Result")
+
+
+ 
+    #year_dropdown = st.sidebar.selectbox('Select Specific Year',  list(grouped_by_year['YR_NB'].unique()))
+    year_dropdown = 2023
+    grouped_by_year = grouped_by_year[grouped_by_year['YR_NB'] == year_dropdown]
+    grouped_by_year = grouped_by_year.reset_index(drop=True)
+
+
+    media_list = []
+    for col in df.columns:
+        #print(col)
+        if col.startswith('media') and len(media_list) < 10:
+            media_list.append(col)
+
+    spend_list = []
+    for col in df.columns:
+        #print(col)
+        if col.startswith('spend') and len(spend_list) < 10:
+            spend_list.append(col)
+
+    # media_list = ['media1','media2','media3','media4','media5','media6','media7','media8','media9','media10']
+    # spend_list = ['spend1','spend2','spend3','spend4','spend5','spend6','spend7','spend8','spend9','spend10']
+    my_dict = dict(zip(media_list, spend_list))
+    colheaders = ['Channel','Actual Spend Perc','Actual Spend','Forecast Perc','Forecasted Spend']
+    df_output = pd.DataFrame(columns=colheaders)
+
+
+
+    sum = 0
+    for k in media_list:
+        sum = sum + grouped_by_year.loc[0][my_dict[k]]
+
+    cols = st.columns([1,1,1,1,1],gap = 'large')
+    #forecastt = {'media1': float(0), 'media2': float(0), 'media3': float(0), 'media4': 0, 'media5': 0, 'media6': 0, 'media7': 0, 'media8': 0, 'media9': 0, 'media10': 0}
+    forecastt = {key: float(0) for key in media_list}
+    @st.cache_data(experimental_allow_widgets=True)
+    def update_forecast_values(media_list):
+        forecastt = {}
+        for k in media_list:
+            forecastt[k] = st.number_input("", help=f"Forecast {k}", placeholder="10.0", label_visibility="collapsed")
+            
+            st.write(" ")
+        forecastt = {key: float(value) for key,value in forecastt.items()}
+        return forecastt
+
+
+
+
+    for i in range(5):
+        cols[i].write(colheaders[i])
+        if colheaders[i] == 'Channel':
+            with cols[i]:
+                temp = 0
+                for k in media_list:
+                    # st.write(" ")
+                    # st.write(" ")
+                    st.write(f"{k}: ", font = "Calibri 32")
+                    df_output.at[temp,"Channel"] = k
+                    temp = temp + 1
+
+                    st.write(" ")
+                    st.write(" ")
+                    #change_label_style(textt,'blue')
+
+
+
+
+        elif colheaders[i] == 'Forecast Perc':
+
+            
+            with cols[i]:
+                forecastt = update_forecast_values(media_list)
+                templist = []
+                if st.button("Click to apply changes!"):
+                    
+                    templist = list(forecastt.values())
+                    df_output["Forecast Perc"] = templist
+
+
+
+        # elif colheaders[i] == 'Forecast Perc':
+        #     with cols[i]:
+        #         temp = 0
+        #         for k in media_list:
+        #             #forecastt[k] = st.number_input("hi", value=None,help = f"Forecast {k}", placeholder="10.0",label_visibility = "hidden")
+        #             forecastt[k] = st.number_input("",help = f"Forecast {k}", placeholder="10.0",label_visibility = "collapsed")
+        #             #df_output.at[temp,"Forecast Perc"] = forecastt[k]
+        #             temp = temp + 1
+        #             #df_output.at[len(df_output),"Forecast Perc"] = forecastt[k]
+        #             st.write(" ")
+        #         templist = list(forecastt.values())
+        #         if st.button("Click to apply changes!"):
+        #             df_output["Forecast Perc"] = templist
+
+
+                    
+                st.write(" ")
+                forecasttsum = 0
+                for i in forecastt.values():
+                    forecasttsum = forecasttsum + i
+                if forecasttsum > 100:
+                    st.write(f"current total percentage is {forecasttsum}")
+                    st.warning("Percentage value is greater than 100!!!!!.")
+                elif forecasttsum == 100:
+                    st.write(f"current total percentage is {forecasttsum}")
+                    st.success("Percentage value is equal to 100!!!!!.")
+                else:
+                    st.write(f"current total percentage is {forecasttsum}")
+                    st.warning("Percentage value is less than 100!!!!!.")
+
+
+
+        elif colheaders[i] == 'Actual Spend Perc':
+            with cols[i]:
+                temp = 0
+                for k in media_list:
+
+                    st.write(np.round(100*grouped_by_year.loc[0][my_dict[k]]/sum,2))
+                    df_output.at[temp,"Actual Spend Perc"] = 100*grouped_by_year.loc[0][my_dict[k]]/sum
+                    temp = temp + 1
+
+                    st.write(" ")
+                    st.write(" ")
+        elif colheaders[i] == 'Actual Spend':
+            with cols[i]:
+                temp = 0
+                for k in media_list:
+
+
+                    st.write(np.round(grouped_by_year.loc[0][my_dict[k]],2))
+                    df_output.at[temp,"Actual Spend"] = grouped_by_year.loc[0][my_dict[k]]
+                    temp = temp + 1
+                    st.write(" ")
+                    st.write(" ")
+                st.write(f"Current spend total: {np.round(sum,2)}")
+        elif colheaders[i] == 'Forecasted Spend':
+            with cols[i]:
+                
+                if st.button("Click to apply new forecast changes!"):
+                    temp = 0
+                    for k in media_list:
+                
+
+                        st.write(np.round(forecastt[k] * sum/100,2))
+                        df_output.at[temp,"Forecasted Spend"] = forecastt[k] * sum/100
+                        temp = temp + 1
+                        st.write(" ")
+                        st.write(" ")
+                #st.write(forecastt[k] * grouped_by_year.loc[0][my_dict[k]]/100)
+    
+
+    dfs = []
+    dfs1 = []
+
+    for t in grouped_by_month_2023['MO_NB'].unique():
+        #st.write(forecastt)
+        grouped_by_month_2023_temp = grouped_by_month_2023[grouped_by_month_2023['MO_NB'] == t]
+        grouped_by_month_2023_temp = grouped_by_month_2023_temp.reset_index()
+
+        colheaders = ['Channel','Actual Spend Perc','Actual Spend','Forecast Perc','Forecasted Spend']
+        globals()[f'df_output_month_{t}'] = pd.DataFrame(columns=colheaders)
+
+        media_list = []
+        for col in df.columns:
+            #print(col)
+            if col.startswith('media') and len(media_list) < 10:
+                media_list.append(col)
+
+        spend_list = []
+        for col in df.columns:
+            #print(col)
+            if col.startswith('spend') and len(spend_list) < 10:
+                spend_list.append(col)
+
+        # media_list = ['media1','media2','media3','media4','media5','media6','media7','media8','media9','media10']
+        # spend_list = ['spend1','spend2','spend3','spend4','spend5','spend6','spend7','spend8','spend9','spend10']
+        my_dict = dict(zip(media_list, spend_list))
+
+        sum = 0
+        
+        for k in media_list:
+            sum = sum + grouped_by_month_2023_temp.loc[0][my_dict[k]]
+        cols = st.columns([1,1,1,1,1],gap = 'large')
+        #forecastt = {'media1': float(0), 'media2': float(0), 'media3': float(0), 'media4': 0, 'media5': 0, 'media6': 0, 'media7': 0, 'media8': 0, 'media9': 0, 'media10': 0}
+
+
+
+
+        for i in range(5):
+            #cols[i].write(colheaders[i])
+            if colheaders[i] == 'Channel':
+                with cols[i]:
+                    temp = 0
+                    for k in media_list:
+                        # st.write(" ")
+                        # st.write(" ")
+                        #st.write(f"{k}: ", font = "Calibri 32")
+                        globals()[f'df_output_month_{t}'].at[temp,"Channel"] = f"{k}_month_{t}"
+                        temp = temp + 1
+
+                        # st.write(" ")
+                        # st.write(" ")
+                        #change_label_style(textt,'blue')
+
+            elif colheaders[i] == 'Forecast Perc':
+                with cols[i]:
+                    temp = 0
+                    for k in media_list:
+                        #forecastt[k] = st.number_input("hi", value=None,help = f"Forecast {k}", placeholder="10.0",label_visibility = "hidden")
+                        #forecastt[k] = st.number_input("",help = f"Forecast {k}", placeholder="10.0",label_visibility = "collapsed")
+                        globals()[f'df_output_month_{t}'].at[temp,"Forecast Perc"] = forecastt[k]
+                        temp = temp + 1
+                        #df_output.at[len(df_output),"Forecast Perc"] = forecastt[k]
+                        # st.write(" ")
+                        
+
+
+
+
+            elif colheaders[i] == 'Actual Spend Perc':
+                with cols[i]:
+                    temp = 0
+                    for k in media_list:
+    
+                        # st.write(100*grouped_by_month_2023_temp.loc[0][my_dict[k]]/sum)
+                        globals()[f'df_output_month_{t}'].at[temp,"Actual Spend Perc"] = 100*grouped_by_month_2023_temp.loc[0][my_dict[k]]/sum
+                        temp = temp + 1
+
+                        # st.write(" ")
+                        # st.write(" ")
+            elif colheaders[i] == 'Actual Spend':
+                with cols[i]:
+                    temp = 0
+                    for k in media_list:
+
+
+                        # st.write(grouped_by_month_2023_temp.loc[0][my_dict[k]])
+                        globals()[f'df_output_month_{t}'].at[temp,"Actual Spend"] = grouped_by_month_2023_temp.loc[0][my_dict[k]]
+                        temp = temp + 1
+                        # st.write(" ")
+                        # st.write(" ")
+                    # st.write(f"Current spend total: {sum}")
+            elif colheaders[i] == 'Forecasted Spend':
+                with cols[i]:
+                    temp = 0
+                    for k in media_list:
+                
+
+                        # st.write(forecastt[k] * sum/100)
+                        globals()[f'df_output_month_{t}'].at[temp,"Forecasted Spend"] = forecastt[k] * sum/100
+                        temp = temp + 1
+                        # st.write(" ")
+                        # st.write(" ")
+        #st.dataframe(globals()[f'df_output_month_{t}'])
+        dfs1.append(globals()[f'df_output_month_{t}'])
+        dfs.append(f'df_output_month_{t}')
+    concatenated_df = pd.concat(dfs1, ignore_index=True)
+
+
+    
+    if st.button("Save the Yearly and Monthly Simulated Scenarios for 2023 in Excel (No need to further save as CSV):",type="primary"):
+        coll1,coll2 = st.columns([1.1,1])
+        with coll1:
+            st.write("Monthly")
+            st.dataframe(concatenated_df)
+        with coll2:
+            st.write("Yearly")
+            st.dataframe(df_output)
+        with pd.ExcelWriter('../data/output_data/Yearly and Monthly Scenarios.xlsx') as writer:  
+            df_output.to_excel(writer, sheet_name='Yearly Scenario')
+            concatenated_df.to_excel(writer, sheet_name='Monthly Scenario')
+
+    st.write("Dataframes used for this tool:")
+    st.write(grouped_by_year[['YR_NB'] + spend_list])
+    st.write(grouped_by_month_2023[['MO_NB'] + spend_list])
